@@ -47,6 +47,18 @@ namespace :solr do
     raise "test failures: #{error}" if error
   end
 
+  desc "starts test solr server"
+  task :start do
+    TestSolrServer.config(SOLR_PARAMS)
+    TestSolrServer.instance.start
+  end
+
+  desc "stops test solr server"
+  task :stop do
+    TestSolrServer.config(SOLR_PARAMS)
+    TestSolrServer.instance.stop
+  end
+
   desc "Calls Cucumber Features wrapped in the test instance of Solr"
   task :features do
     # wrap tests with a test-specific Solr server
