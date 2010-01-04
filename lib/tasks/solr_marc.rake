@@ -22,7 +22,7 @@ namespace :solr do
           exit
         end
         
-        commandStr = solr_command_line( solrmarc_arguments )
+        commandStr = solrmarc_command_line( solrmarc_arguments )
         puts commandStr
         puts
         `#{commandStr}`
@@ -52,7 +52,7 @@ namespace :solr do
   
   SolrMarc command that will be run:
   
-  #{solr_command_line(solrmarc_arguments)}
+  #{solrmarc_command_line(solrmarc_arguments)}
   EOS
       end
     end # index
@@ -92,6 +92,6 @@ def compute_arguments
   return arguments
 end
 
-def solr_command_line(arguments)
+def solrmarc_command_line(arguments)
   "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:solr_marc_config_path]} -Dsolrmarc.site.path=#{arguments[:solrmarc_site_path]}#{arguments[:marc_records_path]}"
 end
