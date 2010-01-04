@@ -7,7 +7,7 @@ require 'fileutils'
 
 namespace :solr do
   namespace :marc do
-    desc "Index marc data using SolrMarc. Available environment variables: MARC_RECORDS_PATH, CONFIG_PATH, SOLR_MARC_MEM_ARGS, SOLR_WAR_PATH, SOLR_JAR_PATH"
+    desc "Index marc data using SolrMarc. Available environment variables: MARC_RECORDS_PATH, CONFIG_PATH, SOLR_MARC_MEM_ARGS, SOLR_JAR_PATH"
     task :index => "index:work"
 
     namespace :index do
@@ -30,7 +30,6 @@ namespace :solr do
       default_config_path = File.expand_path(default_config_path)
       
       
-      default_solr_war_path      = File.expand_path(File.join(base_path, "../../../../../../jetty/webapps/solr.war"))
       default_solr_marc_mem_args = '-Xmx512m'      
       default_solr_marc_jar_path = File.expand_path(File.join(base_path, "../../solr_marc/SolrMarc.jar"))
 
@@ -42,8 +41,6 @@ namespace :solr do
       
       solr_marc_mem_args = (ENV['SOLR_MARC_MEM_ARGS'] || default_solr_marc_mem_args)
       
-      solr_war_path = File.expand_path(ENV['SOLR_WAR_PATH'] || default_solr_war_path)
-
       config_path = File.expand_path(ENV['CONFIG_PATH'] || default_config_path)
       
       marc_records_path = ENV['MARC_FILE']
@@ -68,7 +65,7 @@ namespace :solr do
         original_wd = Dir.pwd
         Dir.chdir( File.dirname(config_path) )       
         
-        commandStr = "java #{solr_marc_mem_args} -Done-jar.class.path=#{solr_war_path} -jar #{solr_marc_jar_path} #{config_path} #{marc_records_path}"
+        commandStr = "java #{solr_marc_mem_args}  -jar #{solr_marc_jar_path} #{config_path} #{marc_records_path}"
         puts commandStr
         puts
         `#{commandStr}`
@@ -89,8 +86,7 @@ namespace :solr do
        RAILS_ROOT/config/SolrMarc/config-ENVIRONMENT.properties
      and then in:  RAILS_ROOT/config/SolrMarc/config.properties
      and then in: BLACKLIGHT_PLUGIN/config/SolrMarc/config.properties
-  
-  SOLR_WAR_PATH: #{solr_war_path}
+    
   
   SOLR_MARC_JAR_PATH: #{solr_marc_jar_path}
   
@@ -98,7 +94,7 @@ namespace :solr do
   
   SolrMarc command that will be run:
   
-  java #{solr_marc_mem_args} -Done-jar.class.path=#{solr_war_path} -jar #{solr_marc_jar_path} #{config_path} #{marc_records_path}
+  java #{solr_marc_mem_args} -jar #{solr_marc_jar_path} #{config_path} #{marc_records_path}
   EOS
       end
     end # index
