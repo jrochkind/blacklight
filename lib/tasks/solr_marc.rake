@@ -72,7 +72,7 @@ def compute_arguments
 
 
   # Config we assume is in site_path. 
-  arguments[:config_properties_path] = ENV['CONFIG_PATH'] || File.expand_path(File.join(arguments[:solrmarc_site_path], "config.properites"))
+  arguments[:config_properties_path] = ENV['CONFIG_PATH'] || File.expand_path(File.join(arguments[:solrmarc_site_path], "config.properties"))
 
   #java mem arg is from env, or default
 
@@ -93,5 +93,5 @@ def compute_arguments
 end
 
 def solrmarc_command_line(arguments)
-  "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:solr_marc_config_path]} -Dsolrmarc.site.path=#{arguments[:solrmarc_site_path]}#{arguments[:marc_records_path]}"
+  "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:solr_marc_config_path]} -Dsolrmarc.site.path=#{arguments[:solrmarc_site_path]} #{arguments[:config_properties_path]} #{arguments[:marc_records_path]}"
 end
