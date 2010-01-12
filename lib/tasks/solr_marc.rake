@@ -7,7 +7,7 @@ require 'fileutils'
 
 namespace :solr do
   namespace :marc do
-    desc "Index marc data using SolrMarc. Available environment variables: MARC_RECORDS_PATH, SOLRMARC_MEM_ARGS, SOLRMARC_JAR_PATH, SOLRMARC_SITE_PATH, CONFIG_PATH "
+    desc "Index marc data using SolrMarc. Available environment variables: MARC_RECORDS_PATH, SOLRMARC_MEM_ARGS, SOLRMARC_JAR_PATH, CONFIG_PATH "
     task :index => "index:work"
 
     namespace :index do
@@ -39,12 +39,13 @@ namespace :solr do
         rake solr:marc:index MARC_FILE=/some/file.mrc
   
   MARC_FILE: #{solrmarc_arguments[:marc_records_path] || "[marc records path needed]"}
-
-  SOLRMARC_SITE_PATH: #{solrmarc_arguments[:solrmarc_site_path]}
-    Used as solrmarc.site.path property to Solr, all your local files. 
   
   CONFIG_PATH: #{solrmarc_arguments[:config_properties_path]}
-     defaults to SOLRMARC_SITE_PATH/config.properties    
+     Defaults to RAILS_ROOT/config/SolrMarc/config(-RAILS_ENV).properties
+     or else RAILS_ROOT/vendor/plugins/blacklight/SolrMarc/config ...
+
+     Note that SolrMarc search path includes directory of config_path,
+     so translation_maps and index_scripts dirs will be found there. 
   
   SOLRMARC_JAR_PATH: #{solrmarc_arguments[:solrmarc_jar_path]}
   
@@ -68,12 +69,23 @@ def compute_arguments
 
   app_site_path = File.expand_path(File.join(RAILS_ROOT, "config", "SolrMarc"))
   plugin_site_path = File.expand_path(File.join(RAILS_ROOT, "plugins", "blacklight", "config", "SolrMarc"))
-  arguments[:solrmarc_site_path] = ENV['SOLRMARC_SITE_PATH'] || (File.exists?(app_site_path) ? app_site_path : plugin_site_path)
 
 
-  # Config we assume is in site_path. 
-  arguments[:config_properties_path] = ENV['CONFIG_PATH'] || File.expand_path(File.join(arguments[:solrmarc_site_path], "config.properties"))
-
+  # Find config in local app or plugin, possibly based on our RAILS_ENV  
+  arguments[:config_properties_path] = ENV['CONFIG_PATH']
+  unless arguments[:config_properties_path]
+    [ File.join(app_site_path, "config-#{RAILS_ENV}.properties"  ),
+      File.join( app_site_path, "config.properties"),
+      File.join( plugin_site_path, "config-#{RAILS_ENV}.properties"),
+      File.join( plugin_site_path, "config.properties"),
+    ].each do |file_path|
+      if File.exists?(file_path)
+        arguments[:config_properties_path] = file_path
+        break
+      end
+    end
+  end
+  
   #java mem arg is from env, or default
 
   arguments[:solrmarc_mem_arg] = ENV['SOLRMARC_MEM_ARGS'] || '-Xmx512m'
@@ -96,5 +108,5 @@ def compute_arguments
 end
 
 def solrmarc_command_line(arguments)
-  "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:solr_marc_config_path]} -Dsolrmarc.site.path=#{arguments[:solrmarc_site_path]} #{arguments[:config_properties_path]} #{arguments[:marc_records_path]}"
+  "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:solr_marc_config_path]} #{arguments[:config_properties_path]} #{arguments[:marc_records_path]}"
 end
