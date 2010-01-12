@@ -80,8 +80,10 @@ def compute_arguments
       
   # SolrMarc is embedded in the plugin. We might be running the
   # rake task from the plugin dir, or from the RAILS dir.
+  # from the plugin dir itself:
   solr_marc_from_plugin = File.expand_path(File.join(RAILS_ROOT,"solr_marc","SolrMarc.jar"))
-  solr_marc_from_app = File.expand_path(File.join(RAILS_ROOT, "plugins", "blacklight", "solr_marc", "SolrMarc.jar" ))
+  # from an app dir containing the plugin: 
+  solr_marc_from_app = File.expand_path(File.join(RAILS_ROOT, "vendor", "plugins", "blacklight", "solr_marc", "SolrMarc.jar" ))
   
   arguments[:solrmarc_jar_path] = ENV['SOLRMARC_JAR_PATH'] || (File.exists?(solr_marc_from_app) ? solr_marc_from_app : solr_marc_from_plugin)  
   
