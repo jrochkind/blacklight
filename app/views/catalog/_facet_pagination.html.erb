@@ -1,14 +1,15 @@
-<% unless request.xml_http_request? %><% # dont display the pagination links when request is "ajax" based -%>
+  <% if @pagination.has_previous? || @pagination.has_next? %>
+    <div class="prev_next_links">
+      <span class="prev_link"><%= link_to_if(@pagination.has_previous?, '« Previous', catalog_facet_path( @pagination.params_for_previous_url( params) ))  %></span> 
+          
+      <span class="next_link"><%= link_to_if(@pagination.has_next?, 'Next »', catalog_facet_path( @pagination.params_for_next_url(params)) ) %></span>
+    </div>
+  <% end %>
 
   <div class="sort_options">
-    <%= @pagination.sort == 'index' ? 'A-Z Sort' : link_to("A-Z Sort", @pagination.params_for_resort_url('index', params)) %> 
+    <%=  link_to_unless(@pagination.sort == 'index', "A-Z Sort", @pagination.params_for_resort_url('index', params)) %> 
     |
-    <%= @pagination.sort == 'count' ?  'Numerical Sort' : link_to("Numerical Sort", @pagination.params_for_resort_url('count', params)) %>
+    <%= link_to_unless(@pagination.sort == 'count', "Numerical Sort", @pagination.params_for_resort_url('count', params)) %>
   </div>
 
-  <div class="paging">
-    <%= @pagination.has_previous? ? link_to('previous', catalog_facet_path( @pagination.params_for_previous_url( params) )) : 'previous' %> | 
-        
-    <%= @pagination.has_next? ? link_to('next', catalog_facet_path( @pagination.params_for_next_url(params)) ) : 'next' %>
-  </div>
-<% end %>
+

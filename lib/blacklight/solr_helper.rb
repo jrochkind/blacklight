@@ -132,6 +132,16 @@ module Blacklight::SolrHelper
       solr_parameters[:phrase_filters] = solr_parameters.delete(:f)      
     end
 
+    # Facet 'more' limits. Add +1 to any configured facets limits,
+    # also include 'nil' default limit.
+    if ( default_limit = facet_limit_for(nil))
+      solr_parameters[:"facet.limit"] = (default_limit + 1)                                 
+    end
+    facet_limit_hash.each_pair do |field_name, limit|
+      next if field_name.nil? # skip the 'default' key      
+      solr_parameters[:"f.#{field_name}.facet.limit"] = (limit + 1)
+    end
+    
     
     ###
     # Sanity/requirements checks.
@@ -187,26 +197,35 @@ module Blacklight::SolrHelper
   
   # returns a params hash for a single facet field solr query.
   # used primary by the get_facet_pagination method.
-  # The extra_controller_parameters match REQUEST parameters sent
-  # by Blacklight, so the request params can just be dropped in.
-  # for instance 'sort' or 'offset' instead of 'facet.sort' or 'facet.offset',
-  # Because that's what BL uses in request params. 
+  # Looks up Facet Paginator request params from current request
+  # params to figure out sort and offset.
+  # Default limit for facet list can be specified by defining a controller
+  # method facet_list_limit, otherwise 20. 
   def solr_facet_params(facet_field, extra_controller_params={})
     input = params.deep_merge(extra_controller_params)
-    input[:rows] ||= 0 # We normally don't want any documents, just facet values
+
+    # First start with a standard solr search params calculations,
+    # for any search context in our request params. 
+    solr_params = solr_search_params(extra_controller_params)
     
-    {
-      :phrase_filters => input[:f],
-      :q => input[:q],
-      :facets => {:fields => facet_field},
-      :rows => input[:rows].to_i, # will defualt to - if nil
-      'facet.limit' => 6,
-      'facet.offset' => input[:offset].to_i, # will default to 0 if nil
-      #facet.sort can be 'count' or 'index' (or deprecated 'true'/'false') 
-      # per solr.
-      # http://wiki.apache.org/solr/SimpleFacetParameters#facet.sort
-      'facet.sort' => input[:sort] 
-    }
+    # Now override with our specific things for fetching facet values
+    solr_params[:facets] = {:fields => facet_field}
+
+    # Need to set as f.facet_field.facet.limit to make sure we
+    # override any field-specific default in the solr request handler. 
+    solr_params[:"f.#{facet_field}.facet.limit"] = 
+      if solr_params["facet.limit"] 
+        solr_params["facet.limit"] + 1
+      elsif respond_to?(:facet_list_limit)
+        facet_list_limit.to_s.to_i + 1
+      else
+        20 + 1
+      end
+    solr_params['facet.offset'] = input[  Blacklight::Solr::FacetPaginator.request_keys[:offset]  ].to_i # will default to 0 if nil
+    solr_params['facet.sort'] = input[  Blacklight::Solr::FacetPaginator.request_keys[:sort] ]     
+    solr_params[:rows] = 0
+
+    return solr_params
   end
   
   # a solr query method
@@ -217,11 +236,21 @@ module Blacklight::SolrHelper
 
     # Make the solr call
     response = Blacklight.solr.find(solr_params)
+
+    limit =       
+      if respond_to?(:facet_list_limit)
+        facet_list_limit.to_s.to_i
+      elsif solr_params[:"f.#{facet_field}.facet.limit"]
+        solr_params[:"f.#{facet_field}.facet.limit"] - 1
+      else
+        nil
+      end
+
     
     # Actually create the paginator!
-    return     Blacklight::Solr::Facets::Paginator.new(response.facets.first.items, 
+    return     Blacklight::Solr::FacetPaginator.new(response.facets.first.items, 
       :offset => solr_params['facet.offset'], 
-      :limit => solr_params['facet.limit'],
+      :limit => limit,
       :sort => response["responseHeader"]["params"]["facet.sort"]
     )
   end
