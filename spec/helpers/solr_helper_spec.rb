@@ -8,13 +8,19 @@ class MockSolrHelperContainer
   
   include Blacklight::SolrHelper
   attr_accessor :params
+  attr_accessor :facet_limits
   
   # SolrHelper expects a method called #params,
   # within the class that's mixing it in
   def params
     @params ||= {}
   end
-  
+  def facet_limit_for(facet_field)    
+    facet_limit_hash[facet_field]
+  end
+  def facet_limit_hash
+    @facet_limits ||= {}
+  end
 end
 
 
@@ -143,7 +149,12 @@ describe 'Blacklight::SolrHelper' do
         params[:controller].should be_nil
       end
     end
-
+    describe "overriding of qt parameter" do
+      it "should return the correct overriden parameter" do
+        @solr_helper.params[:qt] = "overriden"
+        @solr_helper.solr_search_params[:qt].should == "overriden"
+      end
+    end
     describe "with a complex parameter environment" do
       before do
         # Add a custom search field def in so we can test it
@@ -207,11 +218,94 @@ describe 'Blacklight::SolrHelper' do
         
       end
     end
-
-
  end
     
+  describe "solr_facet_params" do
+    before do
+      @facet_field = 'format'
+      @generated_solr_facet_params = @solr_helper.solr_facet_params(@facet_field)
 
+      @sort_key = Blacklight::Solr::FacetPaginator.request_keys[:sort]
+      @offset_key = Blacklight::Solr::FacetPaginator.request_keys[:offset]
+    end
+    it 'sets rows to 0' do
+      @generated_solr_facet_params[:rows].should == 0
+    end
+    it 'sets facets requested to facet_field argument' do
+      @generated_solr_facet_params[:facets].should be_kind_of(Hash)
+      @generated_solr_facet_params[:facets][:fields].should == @facet_field
+    end
+    it 'defaults offset to 0' do
+      @generated_solr_facet_params['facet.offset'].should == 0
+    end
+    it 'uses offset manually set, and converts it to an integer' do
+      solr_params = @solr_helper.solr_facet_params(@facet_field, @offset_key => "100")
+      solr_params['facet.offset'].should == 100
+    end
+    it 'defaults limit to 20' do
+      solr_params = @solr_helper.solr_facet_params(@facet_field)
+      solr_params[:"f.#{@facet_field}.facet.limit"].should == 21
+    end
+    describe 'if facet_list_limit is defined in controller' do
+      before(:each) do
+        @solr_helper.stub!("facet_list_limit").and_return("1000")
+      end
+      it 'uses controller method for limit' do
+        solr_params = @solr_helper.solr_facet_params(@facet_field)
+        solr_params[:"f.#{@facet_field}.facet.limit"].should == 1001
+      end
+    end
+    it 'uses sort set manually' do
+      solr_params = @solr_helper.solr_facet_params(@facet_field, @sort_key => "index")
+      solr_params['facet.sort'].should == 'index'
+    end
+    it "comes up with the same params as #solr_search_params to constrain context for facet list" do
+      search_params = {:q => 'tibetan history', :f=> {:format=>'Book', :language_facet=>'Tibetan'}}
+      solr_search_params = @solr_helper.solr_search_params( search_params )
+      solr_facet_params = @solr_helper.solr_facet_params('format', search_params)
+
+      solr_search_params.each_pair do |key, value|
+        # The specific params used for fetching the facet list we
+        # don't care about. 
+        next if [:facets, :rows, 'facet.limit', 'facet.offset', 'facet.sort'].include?(key)
+        # Everything else should match
+        solr_facet_params[key].should be value
+      end
+      
+    end
+  end
+  describe "for facet limit parameters config ed" do
+    before(:all) do
+       @solr_helper = MockSolrHelperContainer.new
+       @solr_helper.params = {:search_field => "test_field", :q => "test query"}
+       @solr_helper.facet_limits = {nil => 20, :subject_facet => 10}
+       @generated_params = @solr_helper.solr_search_params
+     end
+      
+     it "should include default limit+1 as facet.limit" do      
+       @generated_params[:"facet.limit"].should == (@solr_helper.facet_limit_for(nil) + 1) 
+     end
+     it "should include specifically configged facet limits" do
+      @solr_helper.facet_limit_hash.each_pair do |facet_field, limit|
+        next if facet_field.nil? # skip default nil key
+        @generated_params[:"f.#{facet_field}.facet.limit"].should == (limit +1)
+      end
+     end
+     it "should not include a facet limit for the 'nil' key in hash" do
+        @generated_params.should_not have_key(:"f..facet.limit")
+     end
+   end
+   describe "get_facet_pagination" do
+    before(:each) do
+      @facet_paginator = @solr_helper.get_facet_pagination(@facet_field)
+    end
+    it 'should return a facet paginator' do
+      @facet_paginator.should be_a_kind_of(Blacklight::Solr::FacetPaginator)
+    end
+    it 'with a limit set' do
+      @facet_paginator.limit.should_not be_nil
+    end    
+   end
 
 # SPECS FOR SEARCH RESULTS FOR QUERY
   describe 'Search Results' do

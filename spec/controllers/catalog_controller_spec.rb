@@ -240,6 +240,32 @@ describe CatalogController do
       end
     end
 
+    describe "with dynamic export formats" do
+        module FakeExtension
+          def self.extended(document)
+            document.will_export_as(:mock, "application/mock")
+          end
+          
+          def export_as_mock
+            "mock_export"
+          end
+        end
+      before(:each) do
+        SolrDocument.use_extension(FakeExtension)        
+      end
+      
+      it "should respond to an extension-registered format properly" do
+         get :show, :id => doc_id, :format => "mock"
+         response.should be_success
+         response.should have_text("mock_export")         
+      end
+      
+      
+      after(:each) do
+        SolrDocument.registered_extensions = nil
+      end      
+    end # dynamic export formats
+
   end # describe show action
 
   describe "opensearch" do
@@ -295,7 +321,18 @@ describe CatalogController do
     end
   end
 
-  
+  describe "facet_limit_for" do
+    it "should return default value for facet_field not specified" do
+      controller.facet_limit_for("zzz_unknown_facet_field").should == Blacklight.config[:facet][:limits][nil]
+    end
+    it "should return specified value for facet_field specified" do
+      controller.facet_limit_for("subject_facet").should == Blacklight.config[:facet][:limits]["subject_facet"]
+    end
+    it "facet_limit_hash should return hash with key being facet_field and value being configured limit" do
+      controller.facet_limit_hash.should == Blacklight.config[:facet][:limits]
+    end
+      
+  end
 end
 
 

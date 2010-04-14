@@ -1,5 +1,5 @@
 class CatalogController < ApplicationController
-  
+
   include Blacklight::SolrHelper
   
   before_filter :search_session, :history_session
@@ -42,6 +42,15 @@ class CatalogController < ApplicationController
       format.xml  {render :xml => @document.marc.to_xml}
       format.refworks
       format.endnote
+
+      # Add any dynamically added (such as by document extensions)
+      # export formats.
+      @document.export_formats.each_key do | format_name |
+        # It's important that the argument to send be a symbol;
+        # if it's a string, it makes Rails unhappy for unclear reasons. 
+        format.send(format_name.to_sym) { render :text => @document.export_as(format_name) }
+      end
+      
     end
   end
   
@@ -123,12 +132,42 @@ class CatalogController < ApplicationController
           end
       end
       RecordMailer.deliver(email) unless flash[:error]
-      redirect_to catalog_path(@document.id)
+      redirect_to catalog_path(@document[:id])
     else
       flash[:error] = "You must enter a recipient in order to send this message"
     end
   end
-  
+
+    ##################
+  # Config-lookup methods. Should be moved to a module of some kind, once
+  # all this stuff is modulized. But methods to look up config'ed values,
+  # so logic for lookup is centralized in case storage methods changes.
+  # Such methods need to be available from controller and helper sometimes,
+  # so they go in controller with helper_method added.
+  # TODO: Move to a module, and make them look inside the controller
+  # for info instead of in global Blacklight.config object!
+  ###################
+
+  # Look up configged facet limit for given facet_field. If no
+  # limit is configged, may drop down to default limit (nil key)
+  # otherwise, returns nil for no limit config'ed. 
+  def facet_limit_for(facet_field)
+    limits_hash = facet_limit_hash
+    return nil unless limits_hash
+
+    limit = limits_hash[facet_field]
+    limit = limits_hash[nil] unless limit
+
+    return limit
+  end
+  helper_method :facet_limit_for
+  # Returns complete hash of key=facet_field, value=limit.
+  # Used by SolrHelper#solr_search_params to add limits to solr
+  # request for all configured facet limits.
+  def facet_limit_hash
+    Blacklight.config[:facet][:limits]           
+  end
+  helper_method :facet_limit_hash
   protected
   
   #
@@ -196,5 +235,7 @@ class CatalogController < ApplicationController
       search_session[:total] = @response.total
     end
   end
+
+
   
 end
