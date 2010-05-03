@@ -12,10 +12,6 @@ extend BlacklightPathFinders
 namespace :solr do
   namespace :marc do
     
-    # shortcut to Blacklight.locate_path
-    def locate_path *args
-      Blacklight.locate_path *args
-    end
     
     desc "Index the supplied test data into Solr; set NOOP to true to view output command."
     task :index_test_data => :environment do
