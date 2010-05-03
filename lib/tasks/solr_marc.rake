@@ -5,6 +5,10 @@
 
 require 'fileutils'
 
+# give us #root and #locate_path
+require File.expand_path(__FILE__ + '/../../blacklight_path_finders.rb')
+extend BlacklightPathFinders
+
 namespace :solr do
   namespace :marc do
     
@@ -89,6 +93,9 @@ def compute_arguments
   
   arguments  = {}
 
+  require 'ruby-debug'
+  debugger
+  
   app_site_path = File.expand_path(File.join(RAILS_ROOT, "config", "SolrMarc"))
   plugin_site_path = File.expand_path(File.join(RAILS_ROOT, "vendor", "plugins", "blacklight", "config", "SolrMarc"))
 
@@ -112,30 +119,21 @@ def compute_arguments
 
   arguments[:solrmarc_mem_arg] = ENV['SOLRMARC_MEM_ARGS'] || '-Xmx512m'
       
-  # SolrMarc is embedded in the plugin. We might be running the
-  # rake task from the plugin dir, or from the RAILS dir.
-  # from the plugin dir itself:
-  direct_solr_marc = File.expand_path(File.join(RAILS_ROOT,"solr_marc","SolrMarc.jar"))
-  # from an app dir containing the plugin: 
-  solr_marc_via_plugin = File.expand_path(File.join(RAILS_ROOT, "vendor", "plugins", "blacklight", "solr_marc", "SolrMarc.jar" ))
-  
-  arguments[:solrmarc_jar_path] = ENV['SOLRMARC_JAR_PATH'] || (File.exists?(direct_solr_marc) ? direct_solr_marc : solr_marc_via_plugin)  
+  # SolrMarc is embedded in the plugin, or could be a custom
+  # one in local app. 
+  arguments[:solrmarc_jar_path] = ENV['SOLRMARC_JAR_PATH'] || locate_path("solr_marc", "SolrMarc.jar") 
   
 
       
-  arguments[:marc_records_path] = ENV['MARC_FILE']
-  arguments[:marc_records_path] = File.expand_path(arguments[:marc_records_path]) if arguments[:marc_records_path]
 
   # Solr URL, find from solr.yml, app or plugin
-
-  [File.expand_path(File.join(RAILS_ROOT, "config", "solr.yml")) ,
-   File.expand_path(File.join(RAILS_ROOT, "vendor", "plugins", "blacklight", "config", "solr.yml"))].each do |solr_yml_path|        
-      if ( File.exists?( solr_yml_path ))
-        solr_config = YAML::load(File.open(solr_yml_path))
-        arguments[:solr_url] = solr_config[ RAILS_ENV ]['url'] if solr_config[RAILS_ENV]
-        break
-      end
+  solr_yml_path = locate_path("config", "solr.yml")
+  if ( File.exists?( solr_yml_path ))
+    solr_config = YAML::load(File.open(solr_yml_path))
+    arguments[:solr_url] = solr_config[ RAILS_ENV ]['url'] if solr_config[RAILS_ENV]
+    break
   end
+
 
   return arguments
 end
