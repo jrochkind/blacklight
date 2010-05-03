@@ -19,7 +19,7 @@ module BlacklightPathFinders
   
   def locate_path(*subpath_fragments)
     subpath = subpath_fragments.join('/')
-    base_match = [Rails.root, Blacklight.root].find do |base|
+    base_match = [Rails.root, self.root].find do |base|
       File.exists? File.join(base, subpath)
     end
     File.join(base_match.to_s, subpath) if base_match
