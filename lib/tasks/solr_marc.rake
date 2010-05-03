@@ -13,19 +13,12 @@ namespace :solr do
   namespace :marc do
     
     
-    desc "Index the supplied test data into Solr; set NOOP to true to view output command."
-    task :index_test_data => :environment do
-      marc_records_path = locate_path("data", "test_data.utf8.mrc")
-      solr_path = locate_path("jetty", "solr")
-      solr_war_path = locate_path('jetty', 'webapps', 'solr.war')
-      solr_marc_jar_path = locate_path('solr_marc', 'SolrMarc.jar')
-      config_path = locate_path('config', 'SolrMarc', 'config.properties')
-      indexer_properties_path = locate_path('config', 'SolrMarc', 'index.properties')
-      cmd = "java -Xmx512m"
-      cmd << " -Dsolr.indexer.properties=#{indexer_properties_path} -Done-jar.class.path=#{solr_war_path} -Dsolr.path=#{solr_path}"
-      cmd << " -jar #{solr_marc_jar_path} #{config_path} #{marc_records_path}"
-      puts "\ncommand being executed:\n#{cmd}\n\n"
-      system cmd unless ENV.keys.any?{|k| k =~ /^noop/i }
+    desc "Index the supplied test data into configured test Solr"
+    task :index_test_data do
+      ENV['RAILS_ENV'] = 'test'
+      ENV['MARC_FILE'] = locate_path("data", "test_data.utf8.mrc")
+
+      Rake::Task[ "solr:marc:index:work" ].invoke
     end
     
     desc "Index marc data using SolrMarc. Available environment variables: MARC_RECORDS_PATH, CONFIG_PATH, SOLR_MARC_MEM_ARGS, SOLR_WAR_PATH, SOLR_JAR_PATH"
