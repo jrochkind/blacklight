@@ -126,15 +126,16 @@ def compute_arguments
   arguments[:marc_records_path] = ENV['MARC_FILE']
   arguments[:marc_records_path] = File.expand_path(arguments[:marc_records_path]) if arguments[:marc_records_path]
 
-  # Solr URL, find from solr.yml
-  solr_yml_path = "#{RAILS_ROOT}/config/solr.yml"
-  require 'ruby-debug'
-  debugger
-  if ( File.exists?( solr_yml_path ))
-    solr_config = YAML::load(File.open(solr_yml_path))
-    arguments[:solr_url] = solr_config[ RAILS_ENV ]['url'] if solr_config[RAILS_ENV]
-  end
+  # Solr URL, find from solr.yml, app or plugin
 
+  [File.expand_path(File.join(RAILS_ROOT, "config", "solr.yml")) ,
+   File.expand_path(File.join(RAILS_ROOT, "vendor", "plugins", "blacklight", "config", "solr.yml"))].each do |solr_yml_path|        
+      if ( File.exists?( solr_yml_path ))
+        solr_config = YAML::load(File.open(solr_yml_path))
+        arguments[:solr_url] = solr_config[ RAILS_ENV ]['url'] if solr_config[RAILS_ENV]
+        break
+      end
+  end
 
   return arguments
 end
