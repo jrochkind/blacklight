@@ -86,6 +86,7 @@ end # :solr
 # which we assume to be in the plugin, or in the Rails executing
 # this rake task, at RAILS_ROOT. 
 def compute_arguments
+  
   arguments  = {}
 
   app_site_path = File.expand_path(File.join(RAILS_ROOT, "config", "SolrMarc"))
@@ -125,9 +126,23 @@ def compute_arguments
   arguments[:marc_records_path] = ENV['MARC_FILE']
   arguments[:marc_records_path] = File.expand_path(arguments[:marc_records_path]) if arguments[:marc_records_path]
 
+  # Solr URL, find from solr.yml
+  solr_yml_path = "#{RAILS_ROOT}/config/solr.yml"
+  require 'ruby-debug'
+  debugger
+  if ( File.exists?( solr_yml_path ))
+    solr_config = YAML::load(File.open(solr_yml_path))
+    arguments[:solr_url] = solr_config[ RAILS_ENV ]['url'] if solr_config[RAILS_ENV]
+  end
+
+
   return arguments
 end
 
 def solrmarc_command_line(arguments)
-  "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:solr_marc_config_path]} #{arguments[:config_properties_path]} #{arguments[:marc_records_path]}"
+  cmd = "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:config_properties_path]} #{arguments[:marc_records_path]}"
+
+  cmd += " -Dsolr.hosturl=#{arguments[:solr_url]}" unless arguments[:solr_url].blank?
+
+  return cmd  
 end
