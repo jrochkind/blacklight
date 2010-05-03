@@ -38,7 +38,7 @@ namespace :solr do
         solrmarc_arguments = compute_arguments        
 
         # If no marc records given, display :info task
-        unless solrmarc_arguments[:marc_records_path]                    
+        unless solrmarc_arguments["MARC_FILE"]                    
           Rake::Task[ "solr:marc:index:info" ].execute
           exit
         end
@@ -89,8 +89,8 @@ def compute_arguments
   
   arguments  = {}
 
-  require 'ruby-debug'
-  debugger
+  arguments["MARC_FILE"] = ENV["MARC_FILE"]
+
   
   app_site_path = File.expand_path(File.join(RAILS_ROOT, "config", "SolrMarc"))
   plugin_site_path = File.expand_path(File.join(RAILS_ROOT, "vendor", "plugins", "blacklight", "config", "SolrMarc"))
@@ -134,7 +134,7 @@ def compute_arguments
 end
 
 def solrmarc_command_line(arguments)
-  cmd = "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:config_properties_path]} #{arguments[:marc_records_path]}"
+  cmd = "java #{arguments[:solrmarc_mem_arg]}  -jar #{arguments[:solrmarc_jar_path]} #{arguments[:config_properties_path]} #{arguments["MARC_FILE"]}"
 
   cmd += " -Dsolr.hosturl=#{arguments[:solr_url]}" unless arguments[:solr_url].blank?
 
