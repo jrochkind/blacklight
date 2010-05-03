@@ -127,7 +127,6 @@ def compute_arguments
   if ( File.exists?( solr_yml_path ))
     solr_config = YAML::load(File.open(solr_yml_path))
     arguments[:solr_url] = solr_config[ RAILS_ENV ]['url'] if solr_config[RAILS_ENV]
-    break
   end
 
 
