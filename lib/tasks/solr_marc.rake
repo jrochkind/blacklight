@@ -90,7 +90,7 @@ def compute_arguments
   arguments  = {}
 
   app_site_path = File.expand_path(File.join(RAILS_ROOT, "config", "SolrMarc"))
-  plugin_site_path = File.expand_path(File.join(RAILS_ROOT, "plugins", "blacklight", "config", "SolrMarc"))
+  plugin_site_path = File.expand_path(File.join(RAILS_ROOT, "vendor", "plugins", "blacklight", "config", "SolrMarc"))
 
 
   # Find config in local app or plugin, possibly based on our RAILS_ENV  
