@@ -13,9 +13,8 @@ namespace :solr do
   namespace :marc do
     
     
-    desc "Index the supplied test data into configured test Solr"
+    desc "Index the supplied test data into Solr"
     task :index_test_data do
-      ENV['RAILS_ENV'] = 'test'
       ENV['MARC_FILE'] = locate_path("data", "test_data.utf8.mrc")
 
       Rake::Task[ "solr:marc:index:work" ].invoke
