@@ -461,8 +461,11 @@ module BlacklightHelper
 
   # link_back_to_catalog(:label=>'Back to Search')
   # Create a link back to the index screen, keeping the user's facet, query and paging choices intact by using session.
+  # returns nil
   def link_back_to_catalog(opts={:label=>'Back to Search'})
-    query_params = session[:search] ? session[:search].dup : {}
+    return "" unless search_context
+    
+    query_params = search_context[:search].query_params.dup
     query_params.delete :counter
     query_params.delete :total
     link_url = catalog_index_path + "?" + query_params.to_query
