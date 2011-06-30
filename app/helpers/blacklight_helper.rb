@@ -495,12 +495,12 @@ module BlacklightHelper
     
 
   def link_to_previous_document(previous_document)
-    return if previous_document == nil
+    return if previous_document == nil or search_context.nil?
     link_to_document previous_document, :label=>'« Previous', :counter => search_context[:i] - 1
   end
 
   def link_to_next_document(next_document)
-    return if next_document == nil
+    return if next_document == nil or search_context.nil?
     link_to_document next_document, :label=>'Next »', :counter => search_context[:i] + 1
   end
 

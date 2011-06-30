@@ -59,6 +59,7 @@ module CatalogHelper
   # Code should call this method rather than interrogating session directly,
   # because implementation of where this data is stored/retrieved may change. 
   def item_page_entry_info
+    return "" unless search_context
     "Showing item <b>#{search_context[:i]} of #{search_context[:search].total}</b> from your search.".html_safe
   end
   
