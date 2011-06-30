@@ -8,8 +8,7 @@ module Blacklight::Catalog
   # The following code is executed when someone includes blacklight::catalog in their
   # own controller.
   included do  
-    before_filter :search_session, :history_session
-    before_filter :delete_or_assign_search_session_params, :only => :index
+    before_filter :history_session
     
     helper_method :search_context
 
@@ -26,9 +25,6 @@ module Blacklight::Catalog
 
     # get search results from the solr index
     def index
-      
-      delete_or_assign_search_session_params
-      
       extra_head_content << view_context.auto_discovery_link_tag(:rss, url_for(params.merge(:format => 'rss')), :title => "RSS for results")
       extra_head_content << view_context.auto_discovery_link_tag(:atom, url_for(params.merge(:format => 'atom')), :title => "Atom for results")
       extra_head_content << view_context.auto_discovery_link_tag(:unapi, unapi_url, {:type => 'application/xml',  :rel => 'unapi-server', :title => 'unAPI' })
@@ -80,14 +76,7 @@ module Blacklight::Catalog
         end
       end
     end
-  
-    
-    # updates the search counter (allows the show view to paginate)
-    def update
-      adjust_for_results_view
-      session[:search][:counter] = params[:counter]
-      redirect_to :action => "show"
-    end
+      
     
     # displays values and pagination links for a single facet field
     def facet
@@ -221,13 +210,6 @@ module Blacklight::Catalog
   def set_search_context(hash)
     @search_context = hash
   end
-        
-    
-    
-    # sets up the session[:search] hash if it doesn't already exist
-    def search_session
-      session[:search] ||= {}
-    end
     
     # sets up the session[:history] hash if it doesn't already exist.
     # assigns all Search objects (that match the searches in session[:history]) to a variable @searches.
@@ -235,17 +217,7 @@ module Blacklight::Catalog
       session[:history] ||= []
       @searches = searches_from_history # <- in BlacklightController
     end
-    
-    # This method copies request params to session[:search], omitting certain
-    # known blacklisted params not part of search, omitting keys with blank
-    # values. All keys in session[:search] are as symbols rather than strings. 
-    def delete_or_assign_search_session_params
-      session[:search] = {}
-      params.each_pair do |key, value|
-        session[:search][key.to_sym] = value unless ["commit", "counter"].include?(key.to_s) ||
-          value.blank?
-      end
-    end
+        
     
     # Saves the current search (if it does not already exist) as a models/search object
     # then adds the id of the serach object to session[:history]
@@ -253,8 +225,10 @@ module Blacklight::Catalog
       # If it's got anything other than controller, action, total, we
       # consider it an actual search to be saved. Can't predict exactly
       # what the keys for a search will be, due to possible extra plugins.
-      return if (search_session.keys - [:controller, :action, :total, :counter, :commit ]) == [] 
-      params_copy = search_session.clone # don't think we need a deep copy for this
+      return if (params.keys - [:controller, :action, :total, :counter, :commit ]) == []
+      # always make a deep copy of params before modifying it, mutating
+      # the current request params results in terrible bugs. 
+      params_copy = Marshal.load(Marshal.dump(params))
       params_copy.delete(:page)
       
       @current_search_sort = params_copy[:sort]
