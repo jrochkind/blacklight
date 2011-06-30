@@ -442,11 +442,21 @@ module BlacklightHelper
 
   # link_to_document(doc, :label=>'VIEW', :counter => 3)
   # Use the catalog_path RESTful route to create a link to the show page for a specific item. 
-  # catalog_path accepts a HashWithIndifferentAccess object. The solr query params are stored in the session,
-  # so we only need the +counter+ param here. We also need to know if we are viewing to document as part of search results.
+  # catalog_path accepts a HashWithIndifferentAccess object.
+  # TODO, explain this better. 
+  # so we only need the +counter+ param here. 
+  # We also need to know if we are viewing to document as part of search results.
   def link_to_document(doc, opts={:label=>Blacklight.config[:index][:show_link].to_sym, :counter => nil, :results_view => true})
     label = render_document_index_label doc, opts
-    link_to_with_data(label, catalog_path(doc.id), {:method => :put, :class => label.parameterize, :data => opts}).html_safe
+         
+    # Any current search context we want to include for next/prev/back?
+    search_context_params = {}
+    search_context_params[:i] = opts[:counter] || search_context[:i] 
+    search_context_params[:sc] = search_context[:search].id
+    search_context_params[:sort] = search_context[:sort]
+    search_context.delete_if {|k, v| v.blank? } # remove nils
+
+    link_to(label, catalog_path(doc["id"], search_context_params), {:class => label.parameterize} )
   end
 
   # link_back_to_catalog(:label=>'Back to Search')
@@ -483,12 +493,12 @@ module BlacklightHelper
 
   def link_to_previous_document(previous_document)
     return if previous_document == nil
-    link_to_document previous_document, :label=>'« Previous', :counter => session[:search][:counter].to_i - 1
+    link_to_document previous_document, :label=>'« Previous', :counter => search_context[:i] - 1
   end
 
   def link_to_next_document(next_document)
     return if next_document == nil
-    link_to_document next_document, :label=>'Next »', :counter => session[:search][:counter].to_i + 1
+    link_to_document next_document, :label=>'Next »', :counter => search_context[:i] + 1
   end
 
   # Use case, you want to render an html partial from an XML (say, atom)
@@ -504,78 +514,7 @@ module BlacklightHelper
   end
   
 
-  # This is an updated +link_to+ that allows you to pass a +data+ hash along with the +html_options+
-  # which are then written to the generated form for non-GET requests. The key is the form element name
-  # and the value is the value:
-  #
-  #  link_to_with_data('Name', some_path(some_id), :method => :post, :html)
-  def link_to_with_data(*args, &block)
-    if block_given?
-      options      = args.first || {}
-      html_options = args.second
-      concat(link_to(capture(&block), options, html_options))
-    else
-      name         = args.first
-      options      = args.second || {}
-      html_options = args.third
 
-      url = url_for(options)
-
-      if html_options
-        html_options = html_options.stringify_keys
-        href = html_options['href']
-        convert_options_to_javascript_with_data!(html_options, url)
-        tag_options = tag_options(html_options)
-      else
-        tag_options = nil
-      end
-
-      href_attr = "href=\"#{url}\"" unless href
-      "<a #{href_attr}#{tag_options}>#{h(name) || h(url)}</a>".html_safe
-    end
-  end
-
-  # This is derived from +convert_options_to_javascript+ from module +UrlHelper+ in +url_helper.rb+
-  def convert_options_to_javascript_with_data!(html_options, url = '')
-    confirm, popup = html_options.delete("confirm"), html_options.delete("popup")
-
-    method, href = html_options.delete("method"), html_options['href']
-    data = html_options.delete("data")
-    data = data.stringify_keys if data
-    
-    html_options["onclick"] = case
-      when method
-        "#{method_javascript_function_with_data(method, url, href, data)}return false;"
-      else
-        html_options["onclick"]
-    end
-  end
-
-  # This is derived from +method_javascript_function+ from module +UrlHelper+ in +url_helper.rb+
-  def method_javascript_function_with_data(method, url = '', href = nil, data=nil)
-    action = (href && url.size > 0) ? "'#{url}'" : 'this.href'
-    submit_function =
-      "var f = document.createElement('form'); f.style.display = 'none'; " +
-      "this.parentNode.appendChild(f); f.method = 'POST'; f.action = #{action};"+
-      "if(event.metaKey || event.ctrlKey){f.target = '_blank';};" # if the command or control key is being held down while the link is clicked set the form's target to _blank
-    if data
-      data.each_pair do |key, value|
-        submit_function << "var d = document.createElement('input'); d.setAttribute('type', 'hidden'); "
-        submit_function << "d.setAttribute('name', '#{key}'); d.setAttribute('value', '#{escape_javascript(value.to_s)}'); f.appendChild(d);"
-      end
-    end
-    unless method == :post
-      submit_function << "var m = document.createElement('input'); m.setAttribute('type', 'hidden'); "
-      submit_function << "m.setAttribute('name', '_method'); m.setAttribute('value', '#{method}'); f.appendChild(m);"
-    end
-
-    if protect_against_forgery?
-      submit_function << "var s = document.createElement('input'); s.setAttribute('type', 'hidden'); "
-      submit_function << "s.setAttribute('name', '#{request_forgery_protection_token}'); s.setAttribute('value', '#{escape_javascript form_authenticity_token}'); f.appendChild(s);"
-    end
-    submit_function << "f.submit();"
-  end
-  
   # determines if the given document id is in the folder
   def item_in_folder?(doc_id)
     session[:folder_document_ids] && session[:folder_document_ids].include?(doc_id) ? true : false

@@ -1,0 +1,12 @@
+<% if search_context %>
+  <div class="show">
+    <%= render 'constraints', :localized_params=>search_context[:search].query_params %>
+  </div>
+  
+  <div class="pageEntriesInfo">
+    <%= item_page_entry_info %>
+    <%=link_to "start over", catalog_index_path, :id=>"startOverLink" %>
+  </div>
+    
+<% end %>
+

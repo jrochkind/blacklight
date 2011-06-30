@@ -10,7 +10,8 @@ module Blacklight::Catalog
   included do  
     before_filter :search_session, :history_session
     before_filter :delete_or_assign_search_session_params, :only => :index
-    after_filter :set_additional_search_session_values, :only=>:index
+    
+    helper_method :search_context
 
     # Whenever an action raises SolrHelper::InvalidSolrID, this block gets executed.
     # Hint: the SolrHelper #get_solr_response_for_doc_id method raises this error,
@@ -34,7 +35,6 @@ module Blacklight::Catalog
       
       (@response, @document_list) = get_search_results
       @filters = params[:f] || []
-      search_session[:total] = @response.total unless @response.nil?
       
       respond_to do |format|
         format.html { save_current_search_params }
@@ -185,28 +185,44 @@ module Blacklight::Catalog
     #
     # non-routable methods ->
     #
-
+    
+    
     # calls setup_previous_document then setup_next_document.
     # used in the show action for single view pagination.
     def setup_next_and_previous_documents
-      setup_previous_document
-      setup_next_document
+      if search_context
+        search_params = search_context[:search].query_params.merge(:sort => search_context[:sort])
+        i = search_context[:i]
+                
+        if i > 1          
+          @previous_document = get_single_doc_via_search(i - 1, search_params)
+        end
+        @next_document = get_single_doc_via_search(i + 1, search_params)
+      end
     end
     
-    # gets a document based on its position within a resultset  
-    def setup_document_by_counter(counter)
-      return if counter < 1 || session[:search].blank?
-      search = session[:search] || {}
-      get_single_doc_via_search(counter, search)
+    # returns info on the 'search context', for use on a #show page,
+  # for next/prev/return links.
+  # returns nil if there is none. 
+  def search_context
+    @search_context ||= begin
+      if params[:sc] && params[:i]
+        {:search => Search.find(params[:sc]),
+         :i => params[:i].to_i,
+         :sort => params[:sort]
+        }
+      else
+        nil
+      end
     end
+    return @search_context
+  end
+  
+  def set_search_context(hash)
+    @search_context = hash
+  end
+        
     
-    def setup_previous_document
-      @previous_document = session[:search][:counter] ? setup_document_by_counter(session[:search][:counter].to_i - 1) : nil
-    end
-    
-    def setup_next_document
-      @next_document = session[:search][:counter] ? setup_document_by_counter(session[:search][:counter].to_i + 1) : nil
-    end
     
     # sets up the session[:search] hash if it doesn't already exist
     def search_session
@@ -241,22 +257,23 @@ module Blacklight::Catalog
       params_copy = search_session.clone # don't think we need a deep copy for this
       params_copy.delete(:page)
       
-      unless @searches.collect { |search| search.query_params }.include?(params_copy)
+      @current_search_sort = params_copy[:sort]
+      if (in_history = @searches.find { |search| search.query_params == params_copy } )
+        current_search = in_history        
+      else        
+        current_search = Search.create(:query_params => params_copy, :total => @response.total)                                
+        session[:history].unshift(current_search.id)
         
-        new_search = Search.create(:query_params => params_copy)
-        session[:history].unshift(new_search.id)
         # Only keep most recent X searches in history, for performance. 
         # both database (fetching em all), and cookies (session is in cookie)
         session[:history] = session[:history].slice(0, Blacklight::Catalog::SearchHistoryWindow )
       end
+      
+      set_search_context(:search => current_search, :sort => params_copy[:sort])
+      
     end
           
-    # sets some additional search metadata so that the show view can display it.
-    def set_additional_search_session_values
-      unless @response.nil?
-        search_session[:total] = @response.total
-      end
-    end
+
     
     # we need to know if we are viewing the item as part of search results so we know whether to
     # include certain partials or not
