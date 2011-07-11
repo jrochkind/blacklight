@@ -74,11 +74,12 @@ platforms :ruby do
  gem 'sqlite3-ruby', :require => 'sqlite3'
 end
 gem 'blacklight', :path => '../../'
+gem 'jquery-rails'
 
 # For testing
 group :development, :test do 
        gem 'rspec'
-       gem 'rspec-rails', '~>2.5.0'       
+       gem 'rspec-rails', '>=2.5.0'       
        gem 'generator_spec'
        gem 'cucumber-rails'
        gem 'database_cleaner'  
